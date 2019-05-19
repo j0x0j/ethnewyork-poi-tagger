@@ -1,26 +1,34 @@
 pragma solidity 0.5.2;
 
-import "./MockWordaoClient.sol";
+import "../../ETHNY-Word-Dao/contracts/Manager.sol";
 
 
 contract PoiTagger {
-  mapping (address => uint[]) public cscTags;
+  mapping (address => uint32[]) public cscTags;
+  mapping (address => bytes32[]) public cscTagsUncompressed;
 
-  MockWordaoClient wordaoClient;
+  Manager wordDaoClient;
 
   event AddedTag(
     address cscAddress,
     bytes32 tag,
-    uint index
+    uint256 index
   );
 
-  constructor(bytes32[] memory _tags) public {
+  constructor(address _managerAddress) public {
     // Init anything here
-    wordaoClient = new MockWordaoClient(_tags);
+    wordDaoClient = Manager(_managerAddress);
   }
 
   function addTag(address _cscAddress, bytes32 _tag) public returns (bool _tagAdded) {
-    uint nextIndex = cscTags[_cscAddress].push(wordaoClient.compress(_tag));
+    uint256 nextIndex = cscTags[_cscAddress].push(wordDaoClient.getIndex(_tag));
+    emit AddedTag(_cscAddress, _tag, nextIndex);
+
+    return true;
+  }
+
+  function addTagUncompressed(address _cscAddress, bytes32 _tag) public returns (bool _tagAdded) {
+    uint256 nextIndex = cscTagsUncompressed[_cscAddress].push(_tag);
     emit AddedTag(_cscAddress, _tag, nextIndex);
 
     return true;
@@ -29,8 +37,18 @@ contract PoiTagger {
   function getTags(address _cscAddress) public view returns (bytes32[] memory _tags) {
     bytes32[] memory tags = new bytes32[](cscTags[_cscAddress].length);
 
-    for (uint i = 0; i < cscTags[_cscAddress].length; ++i) {
-      tags[i] = wordaoClient.uncompress(cscTags[_cscAddress][i]);
+    for (uint32 i = 0; i < cscTags[_cscAddress].length; ++i) {
+      tags[i] = wordDaoClient.getBytesByKey(cscTags[_cscAddress][i]);
+    }
+
+    return tags;
+  }
+
+  function getTagsUncompressed(address _cscAddress) public view returns (bytes32[] memory _tags) {
+    bytes32[] memory tags = new bytes32[](cscTagsUncompressed[_cscAddress].length);
+
+    for (uint32 i = 0; i < cscTagsUncompressed[_cscAddress].length; ++i) {
+      tags[i] = cscTagsUncompressed[_cscAddress][i];
     }
 
     return tags;
